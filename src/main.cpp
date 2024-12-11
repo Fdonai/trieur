@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include "rgb_lcd.h"
+#include <ESP32Encoder.h>
 
 rgb_lcd lcd;
+ESP32Encoder encoder;
 
 //définition des pins des BP
 int BP0=0;
@@ -10,6 +12,9 @@ int BP2=12;
 
 //définition du pin du POTAR
 int POT=33;
+
+//définition du pin du CNY70
+int CNY=32;
 
 //déclaration des variables pour lire les entrée
 int Val_BP0;
@@ -29,6 +34,14 @@ int resolution = 10;
 int lecture_POT;
 float Tension_POT;
 
+
+
+//déclaration de la variables de la lecture du CNY70
+
+int lecture_CNY;
+
+
+
 void setup() {
   // Initialise la liaison avec le terminal
   Serial.begin(115200);
@@ -41,7 +54,7 @@ void setup() {
   // Initialise l'écran LCD
   Wire1.setPins(15, 5);
   lcd.begin(16, 2, LCD_5x8DOTS, Wire1);
-  lcd.printf("Trieur de balles");
+ // lcd.printf("Trieur de balles");
 
 // Configuration de la PWM
   ledcSetup(canal1,frequence,resolution);
@@ -49,7 +62,10 @@ void setup() {
 // Liaison du canaux PWM sur l'ESP32
   ledcAttachPin(PWM,canal1);
 
-
+//
+  encoder.attachHalfQuad ( 23, 19);
+  encoder.setCount ( 0 );
+  Serial.begin ( 115200 );
 }
 
 void loop() {
@@ -62,22 +78,43 @@ void loop() {
   Val_BP1=digitalRead(BP1);
   Val_BP2=digitalRead(BP2);
 
-  Serial.printf("bp0 %d bp1 %d bp2 %d \n",Val_BP0,Val_BP1,Val_BP2);
+ // Serial.printf("bp0 %d bp1 %d bp2 %d \n",Val_BP0,Val_BP1,Val_BP2);
 
 //Potentiomètre
 lecture_POT=analogRead(POT);
 Tension_POT=3.3*lecture_POT/4095;
 
 Serial.printf("pot %d \n",lecture_POT);
-lcd.printf("pot %d ",lecture_POT);
+//lcd.printf("pot %d ",lecture_POT);
 delay(10);
 lcd.clear();
-lcd.printf("U= %.2f V",Tension_POT);
+//lcd.printf("U= %.2f V",Tension_POT);
 delay(10);
 lcd.clear();
 
 //rapport cyclique
+//ledcWrite(canal1,lecture_POT/4);
 
-ledcWrite(canal1,lecture_POT);
+// encoder
+long newPosition = encoder.getCount() / 2;
+Serial.println(newPosition);
+
+if (newPosition<= (-200))
+{
+  ledcWrite(canal1,0);
+}
+else
+{
+  ledcWrite(canal1,lecture_POT/4);
+}
+
+if(Val_BP0==0)
+{
+  encoder.setCount(0);
+}
+
+// CNY70
+lecture_CNY=analogRead(CNY);
+lcd.printf("cny %d \n",lecture_CNY);
 
 }
