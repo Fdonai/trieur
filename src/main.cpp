@@ -16,6 +16,15 @@ int Val_BP0;
 int Val_BP1;
 int Val_BP2;
 
+//définition du pin du PWM
+int PWM=27;
+
+// caractéristique de la PWM
+int frequence = 25000;
+int canal1=1;
+int resolution = 10;
+
+
 //déclaration de la variables de la lecture du POTAR
 int lecture_POT;
 float Tension_POT;
@@ -33,6 +42,13 @@ void setup() {
   Wire1.setPins(15, 5);
   lcd.begin(16, 2, LCD_5x8DOTS, Wire1);
   lcd.printf("Trieur de balles");
+
+// Configuration de la PWM
+  ledcSetup(canal1,frequence,resolution);
+
+// Liaison du canaux PWM sur l'ESP32
+  ledcAttachPin(PWM,canal1);
+
 
 }
 
@@ -54,10 +70,14 @@ Tension_POT=3.3*lecture_POT/4095;
 
 Serial.printf("pot %d \n",lecture_POT);
 lcd.printf("pot %d ",lecture_POT);
-delay(1000);
+delay(10);
 lcd.clear();
 lcd.printf("U= %.2f V",Tension_POT);
-delay(1000);
+delay(10);
 lcd.clear();
+
+//rapport cyclique
+
+ledcWrite(canal1,lecture_POT);
 
 }
