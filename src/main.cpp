@@ -68,7 +68,7 @@ void setup() {
   ledcAttachPin(PWM,canal1);
 
 //Config Encoder
-  encoder.attachHalfQuad ( 23, 19);
+  encoder.attachFullQuad ( 23, 19);
   encoder.setCount ( 0 );
   Serial.begin ( 115200 );
 }
@@ -100,30 +100,34 @@ lcd.clear();
 
 
 // encoder
-long newPosition = encoder.getCount() / 2;
+long newPosition = encoder.getCount();
 Serial.println(newPosition);
 
 switch (etat)
 {
 case 0:
+  ledcWrite(canal1,0);
   digitalWrite(SLEEP,LOW);
-  if (!Val_BP0)etat=1;
+  if (!Val_BP2)etat=1; // bouton Init vert
   break;
 
 case 1:
-  ledcWrite(canal1,0);
   digitalWrite(SLEEP,HIGH);
-  if(!Val_BP1)etat=2;
-  if(!Val_BP2)etat=4;
+  ledcWrite(canal1,410);
+  if(lecture_CNY>=4000)etat=2;
 break;
 
 case 2:
-  if(Val_BP1==1)etat=3;
+  ledcWrite(canal1,0);
+  digitalWrite(SLEEP,LOW);
+  if(!Val_BP0)etat=3;//bouton bleu 
+  if(!Val_BP1)etat=4;//bouton jaune
 break;
 case 3:
-  digitalWrite(MODE,LOW);
+  digitalWrite(MODE,LOW)/*sens horaire */;ledcWrite(canal1,410);/*vitesse de rotation*/ digitalWrite(SLEEP,HIGH);/*Armé*/
+
   ledcWrite(canal1,lecture_POT/2);
-  if(lecture_POT/2==0)etat=0;
+  if(lecture_CNY>=4000)etat=2;
 break;
 case 4:
   if(Val_BP2==1)etat=5;
@@ -142,11 +146,11 @@ default:
 
 // CNY70
 lecture_CNY=analogRead(CNY);
-//lcd.printf("cny %d \n",lecture_CNY);
-
+lcd.printf("cny %d ",lecture_CNY);
+/*
 lcd.setCursor(0,0);
 lcd.printf("cycle %.2f%",(lecture_POT/2.0)*100/2047);
 lcd.setCursor(0,1);
 lcd.printf("Choir mode A/R:");
-
+*/
 }
