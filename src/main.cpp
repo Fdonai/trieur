@@ -5,6 +5,9 @@
 rgb_lcd lcd;
 ESP32Encoder encoder;
 
+//initialisation du switch case
+char etat=0;
+
 //définition des pins des BP
 int BP0=0;
 int BP1=2;
@@ -14,7 +17,7 @@ int BP2=12;
 int POT=33;
 
 //définition du pin du CNY70
-int CNY=32;
+int CNY=36;
 
 //déclaration des variables pour lire les entrée
 int Val_BP0;
@@ -23,12 +26,13 @@ int Val_BP2;
 
 //définition du pin du PWM
 int PWM=27;
+int MODE=26;
+int SLEEP=25;
 
 // caractéristique de la PWM
 int frequence = 25000;
 int canal1=1;
-int resolution = 10;
-
+int resolution = 11;
 
 //déclaration de la variables de la lecture du POTAR
 int lecture_POT;
@@ -37,9 +41,7 @@ float Tension_POT;
 
 
 //déclaration de la variables de la lecture du CNY70
-
 int lecture_CNY;
-
 
 
 void setup() {
@@ -57,20 +59,22 @@ void setup() {
  // lcd.printf("Trieur de balles");
 
 // Configuration de la PWM
+  pinMode(MODE,OUTPUT);
+  pinMode(SLEEP,OUTPUT);
+
   ledcSetup(canal1,frequence,resolution);
 
 // Liaison du canaux PWM sur l'ESP32
   ledcAttachPin(PWM,canal1);
 
-//
+//Config Encoder
   encoder.attachHalfQuad ( 23, 19);
   encoder.setCount ( 0 );
   Serial.begin ( 115200 );
 }
 
 void loop() {
-  /*test 
-  printf("test");*/ 
+
   lcd.setRGB(255, 0, 0);
 
 //Boutons poussoirs
@@ -93,28 +97,56 @@ delay(10);
 lcd.clear();
 
 //rapport cyclique
-//ledcWrite(canal1,lecture_POT/4);
+
 
 // encoder
 long newPosition = encoder.getCount() / 2;
 Serial.println(newPosition);
 
-if (newPosition<= (-200))
+switch (etat)
 {
-  ledcWrite(canal1,0);
-}
-else
-{
-  ledcWrite(canal1,lecture_POT/4);
-}
+case 0:
+  digitalWrite(SLEEP,LOW);
+  if (!Val_BP0)etat=1;
+  break;
 
-if(Val_BP0==0)
-{
-  encoder.setCount(0);
+case 1:
+  ledcWrite(canal1,0);
+  digitalWrite(SLEEP,HIGH);
+  if(!Val_BP1)etat=2;
+  if(!Val_BP2)etat=4;
+break;
+
+case 2:
+  if(Val_BP1==1)etat=3;
+break;
+case 3:
+  digitalWrite(MODE,LOW);
+  ledcWrite(canal1,lecture_POT/2);
+  if(lecture_POT/2==0)etat=0;
+break;
+case 4:
+  if(Val_BP2==1)etat=5;
+break;
+case 5:
+  digitalWrite(MODE,HIGH);
+  ledcWrite(canal1,lecture_POT/2);
+  if(lecture_POT/2==0)etat=0;
+break;
+
+default:
+  break;
 }
+ 
+
 
 // CNY70
 lecture_CNY=analogRead(CNY);
-lcd.printf("cny %d \n",lecture_CNY);
+//lcd.printf("cny %d \n",lecture_CNY);
+
+lcd.setCursor(0,0);
+lcd.printf("cycle %.2f%",(lecture_POT/2.0)*100/2047);
+lcd.setCursor(0,1);
+lcd.printf("Choir mode A/R:");
 
 }
