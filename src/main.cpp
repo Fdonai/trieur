@@ -1,7 +1,11 @@
 #include <Arduino.h>
 #include "rgb_lcd.h"
+#include "Adafruit_TCS34725.h"
+#include <SPI.h>
+
 
 rgb_lcd lcd;
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_16X);
 
 //définition des pins des BP
 int BP0=0;
@@ -34,13 +38,19 @@ void setup() {
   lcd.begin(16, 2, LCD_5x8DOTS, Wire1);
   lcd.printf("Trieur de balles");
 
+  if (tcs.begin()) {
+    Serial.println("Found sensor");
+  } else {
+    Serial.println("No TCS34725 found ... check your connections");
+    while (1);
+  }
+
 }
 
 void loop() {
-  /*test 
-  printf("test");*/ 
-  lcd.setRGB(255, 0, 0);
+  
 
+/*
 //Boutons poussoirs
   Val_BP0=digitalRead(BP0);
   Val_BP1=digitalRead(BP1);
@@ -59,5 +69,34 @@ lcd.clear();
 lcd.printf("U= %.2f V",Tension_POT);
 delay(1000);
 lcd.clear();
+*/
+/*
+uint16_t r, g, b, c, colorTemp, lux;
 
+  tcs.getRawData(&r, &g, &b, &c);
+  // colorTemp = tcs.calculateColorTemperature(r, g, b);
+  colorTemp = tcs.calculateColorTemperature_dn40(r, g, b, c);
+  lux = tcs.calculateLux(r, g, b);
+
+  Serial.print("Color Temp: "); Serial.print(colorTemp, DEC); Serial.print(" K - ");
+  Serial.print("Lux: "); Serial.print(lux, DEC); Serial.print(" - ");
+  Serial.print("R: "); Serial.print(r, DEC); Serial.print(" ");
+  Serial.print("G: "); Serial.print(g, DEC); Serial.print(" ");
+  Serial.print("B: "); Serial.print(b, DEC); Serial.print(" ");
+  Serial.print("C: "); Serial.print(c, DEC); Serial.print(" ");
+  Serial.println(" ");*/
+ float red, green, blue;
+  
+  tcs.setInterrupt(false);  // turn on LED
+
+  //delay(60);  // takes 50ms to read
+
+  tcs.getRGB(&red, &green, &blue);
+  
+  tcs.setInterrupt(true);  // turn off LED
+
+  Serial.print("R:\t"); Serial.print(int(red)); 
+  Serial.print("\tG:\t"); Serial.print(int(green)); 
+  Serial.print("\tB:\t\n"); Serial.print(int(blue));
+  lcd.setRGB(red, green, blue);
 }
