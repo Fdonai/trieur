@@ -8,6 +8,8 @@ rgb_lcd lcd;
 ESP32Encoder encoder;
 
 #define VIT 400
+void vTaskPeriodic(void *pvParameters);
+
 
 //initialisation du switch case
 char etat=0;
@@ -51,6 +53,19 @@ int lecture_CNY;
 char i;
 int x;
 
+//déclaration des variable pour l'asservisement de la vitesse
+int NewVal;
+int vitesse;
+int OldVal = 0;
+int Erreur;
+int Consigne;
+int pwm;
+
+float Kp = 5;//Coeff Proportionnel
+float Ki = 2.5;//Coeff Integral
+
+int Somme;
+
 
 void setup() {
   // Initialise la liaison avec le terminal
@@ -79,11 +94,19 @@ void setup() {
   encoder.attachFullQuad ( 23, 19);
   encoder.setCount ( 0 );
   
+
+// Début OS en Temps Réel
+Serial.printf("Initialisations\n");
+// Création de la tâche périodique
+xTaskCreate(vTaskPeriodic, "vTaskPeriodic", 10000, NULL, 2, NULL);
+
+
 }
 
 void loop() {
 
-  lcd.setRGB(255, 0, 0);
+  lcd.setRGB(255, 100, 200);
+  digitalWrite(SLEEP, HIGH);
 
 //Boutons poussoirs
   Val_BP0=digitalRead(BP0);
@@ -93,10 +116,9 @@ void loop() {
  // Serial.printf("bp0 %d bp1 %d bp2 %d \n",Val_BP0,Val_BP1,Val_BP2);
 
 //Potentiomètre
-lecture_POT=analogRead(POT);
+/*
 Tension_POT=3.3*lecture_POT/4095;
 
-/*
 //Serial.printf("pot %d \n",lecture_POT);
 lcd.printf("pot %d ",lecture_POT);
 delay(10);
@@ -110,68 +132,20 @@ lcd.clear();
 
 
 // encoder
+/*
 long newPosition = encoder.getCount();
 lcd.setCursor(0,1);
 lcd.print(newPosition);
+*/
 
 
 
-switch (etat)
-{
-case 0:
-  ledcWrite(canal1,0);
-  digitalWrite(SLEEP,LOW);
-  if (!Val_BP2)etat=1; // bouton Init vert
-  break;
-
-case 1:
-  digitalWrite(MODE,HIGH);
-  digitalWrite(SLEEP,HIGH);
-  ledcWrite(canal1,VIT);
-  if(lecture_CNY>=4000)etat=2;
-break;
-
-case 2:
-  i=0;
-  encoder.setCount ( 0 );
-  ledcWrite(canal1,0);
-  digitalWrite(SLEEP,LOW);
-  if(!Val_BP0)etat=3;//bouton bleu 
-  if(!Val_BP1)etat=4;//bouton jaune
-break;
-case 3:
-  x=1;
-  digitalWrite(MODE,HIGH);//sens horaire 
-  digitalWrite(SLEEP,HIGH);//Armé
-  ledcWrite(canal1,VIT);//vitesse de rotation
-  if(newPosition<=(-103))etat=5;
-break;
-case 4:
-  x=2;
-  digitalWrite(MODE,LOW);//sens anti-horaire 
-  digitalWrite(SLEEP,HIGH);//Armé
-  ledcWrite(canal1,VIT);//vitesse de rotation
-  if(newPosition>=(103))etat=5;
-break;
-case 5://boite tempo
-  ledcWrite(canal1,0);//Arret
-  digitalWrite(SLEEP,LOW);//Moteur SLEEP
-  encoder.setCount (0);
-  i++;
-  delay(2000);
-  if(i>=8)etat=2;
-  else if(x==1)etat=3;
-  
-  else if(x==2)etat=4;
-  
-break;
-
-default:
-  break;
-}
- 
-
-
+static int i = 0;
+Serial.printf("Boucle principale : %d\n", i++);
+delay(500); 
+lcd.setCursor(0, 0);
+Serial.printf("Cons : %d, vitesse : %d , Erreur : %d, Somme : %d, pwm : %d\n", Consigne,vitesse, Erreur, Somme, pwm);lcd.clear();
+/*
 // CNY70
 lcd.setCursor(0,0);
 lecture_CNY=analogRead(CNY);
@@ -190,5 +164,62 @@ lcd.printf("cycle %.2f%",(lecture_POT/2.0)*100/2047);
 lcd.setCursor(0,1);
 lcd.printf("Choir mode A/R:");
 */
+}
+
+void vTaskPeriodic(void *pvParameters)
+{
+ TickType_t xLastWakeTime;
+ // Lecture du nombre de ticks quand la tâche commence
+ xLastWakeTime = xTaskGetTickCount();
+ while (1)
+ {
+
+
+ NewVal= encoder.getCount ( );
+ vitesse= NewVal-OldVal;
+ OldVal= NewVal;
+
+  Consigne =
+    ((analogRead(POT)-2048)/5);
+  
+  if(((-10)<=Consigne) && (Consigne <= 10))Consigne=0,Somme=0;
+  else
+  {
+     Consigne =
+    ((analogRead(POT)-2048)/5);
+  }
+  
+
+   Erreur = 
+    Consigne - vitesse;
+
+   Somme = 
+    Somme + Erreur;
+
+   pwm = 
+    Kp * Erreur + Ki * Somme ;
+
+    
+
+
+if (pwm>0)
+  {
+  if (pwm>2047) pwm=2047/2;
+  digitalWrite(MODE,LOW);
+  ledcWrite(canal1,pwm);
+  }
+else
+{
+  if (pwm<(-2047))pwm=((-2047)/2);
+  digitalWrite(MODE,HIGH);
+  ledcWrite(canal1,(-pwm));
+}
+
+ // Endort la tâche pendant le temps restant par rapport au réveil,
+ // ici 100ms, donc la tâche s'effectue ici toutes les 100ms.
+ // xLastWakeTime sera mis à jour avec le nombre de ticks au prochain
+ // réveil de la tâche.
+ vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(50));
+ }
 }
 
