@@ -4,11 +4,14 @@
 #include "Adafruit_TCS34725.h"
 #include <SPI.h>
 
+
+
 rgb_lcd lcd;
 ESP32Encoder encoder;
 
+
 #define VIT 400
-void vTaskPeriodic(void *pvParameters);
+//void vTaskPeriodic(void *pvParameters);
 
 
 //initialisation du switch case
@@ -44,8 +47,6 @@ int resolution = 11;
 int lecture_POT;
 float Tension_POT;
 
-
-
 //déclaration de la variables de la lecture du CNY70
 int lecture_CNY;
 
@@ -66,6 +67,14 @@ float Ki = 2.5;//Coeff Integral
 
 int Somme;
 
+//Déclaration du pin du servo moteur
+int servo = 13;
+int pos;
+
+// caractéristique du servo moteur
+int servfreq = 50;
+int canal2=1;
+int resolutionser = 10;
 
 void setup() {
   // Initialise la liaison avec le terminal
@@ -98,9 +107,13 @@ void setup() {
 // Début OS en Temps Réel
 Serial.printf("Initialisations\n");
 // Création de la tâche périodique
-xTaskCreate(vTaskPeriodic, "vTaskPeriodic", 10000, NULL, 2, NULL);
+//xTaskCreate(vTaskPeriodic, "vTaskPeriodic", 10000, NULL, 2, NULL);
 
 
+//Configuration du servo moteur
+ledcSetup(canal2,servfreq,resolutionser);
+// Liaison du canaux PWM du servo sur l'ESP32
+  ledcAttachPin(servo,canal2);
 }
 
 void loop() {
@@ -140,11 +153,13 @@ lcd.print(newPosition);
 
 
 
-static int i = 0;
-Serial.printf("Boucle principale : %d\n", i++);
-delay(500); 
+
+
+
+lcd.clear();
 lcd.setCursor(0, 0);
-Serial.printf("Cons : %d, vitesse : %d , Erreur : %d, Somme : %d, pwm : %d\n", Consigne,vitesse, Erreur, Somme, pwm);lcd.clear();
+lcd.printf("pos : %d",pos);
+delay(50); 
 /*
 // CNY70
 lcd.setCursor(0,0);
@@ -164,62 +179,19 @@ lcd.printf("cycle %.2f%",(lecture_POT/2.0)*100/2047);
 lcd.setCursor(0,1);
 lcd.printf("Choir mode A/R:");
 */
-}
 
-void vTaskPeriodic(void *pvParameters)
-{
- TickType_t xLastWakeTime;
- // Lecture du nombre de ticks quand la tâche commence
- xLastWakeTime = xTaskGetTickCount();
- while (1)
- {
-
-
- NewVal= encoder.getCount ( );
- vitesse= NewVal-OldVal;
- OldVal= NewVal;
-
-  Consigne =
-    ((analogRead(POT)-2048)/5);
+pos =
+  (((30*(analogRead(POT)/4))/1024)+60);
   
-  if(((-10)<=Consigne) && (Consigne <= 10))Consigne=0,Somme=0;
+  if((70<=pos) && (pos <= 75))pos=75;
   else
   {
-     Consigne =
-    ((analogRead(POT)-2048)/5);
-  }
-  
-
-   Erreur = 
-    Consigne - vitesse;
-
-   Somme = 
-    Somme + Erreur;
-
-   pwm = 
-    Kp * Erreur + Ki * Somme ;
-
+  pos =(((30*(analogRead(POT)/4))/1024)+60);
     
-
-
-if (pwm>0)
-  {
-  if (pwm>2047) pwm=2047/2;
-  digitalWrite(MODE,LOW);
-  ledcWrite(canal1,pwm);
   }
-else
-{
-  if (pwm<(-2047))pwm=((-2047)/2);
-  digitalWrite(MODE,HIGH);
-  ledcWrite(canal1,(-pwm));
+  ledcWrite(canal2, pos);
+
+
 }
 
- // Endort la tâche pendant le temps restant par rapport au réveil,
- // ici 100ms, donc la tâche s'effectue ici toutes les 100ms.
- // xLastWakeTime sera mis à jour avec le nombre de ticks au prochain
- // réveil de la tâche.
- vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(50));
- }
-}
 
